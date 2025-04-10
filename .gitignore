@@ -23,4 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 .env
-./src/api
+api
+venv
+
+

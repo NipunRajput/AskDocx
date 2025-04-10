@@ -1,0 +1,7 @@
+Flask
+Flask-Cors
+python-dotenv
+requests
+PyPDF2 # For PDF text extraction
+python-docx # For DOCX text extraction
+Werkzeug # Flask dependency, ensure it's updated

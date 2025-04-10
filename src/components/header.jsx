@@ -2,7 +2,7 @@ import React from 'react';
 // Correctly import the logo image source.
 // Adjust the path if '../assets/1.png' is not correct relative to this Header component file.
 // Common patterns might be '/src/assets/1.png' or using an alias like '@/assets/1.png'.
-import logoSrc from '../assets/1.png';
+import {image} from '../db';
 
 // It's often better practice to use the semantic <header> tag
 export default function Header() {
@@ -25,7 +25,7 @@ export default function Header() {
             // Removed excessive margins/paddings (pl-10, mt-10, pb-10)
             // Removed cursor-pointer as the 'a' tag handles it
             className='h-10 w-auto' // Adjust height as needed
-            src={logoSrc}        // Use the imported image source variable
+            src={image[0].image}        // Use the imported image source variable
             alt="Agent.ai Logo"  // Use descriptive alt text from image
           />
           {/* Optional: Add site name text next to logo */}
