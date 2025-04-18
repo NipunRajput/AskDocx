@@ -5,7 +5,7 @@ import {image} from '../db';
 export default function Footer() {
   const currentYear = new Date().getFullYear();
   return (
-    <footer className="bg-zinc-800 text-zinc-400 mt-16">
+    <footer className="bg-zinc-800 text-zinc-400 mt-1">
       <div className="container mx-auto px-6 py-8">
         <div className="flex flex-col items-center md:flex-row md:justify-between">
           <div className="flex flex-col items-center md:items-start mb-6 md:mb-0">
