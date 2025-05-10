@@ -6,10 +6,8 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 import requests
-
-# --- Text Extraction Imports ---
 import PyPDF2
-import docx # python-docx
+import docx
 
 # --- Configuration ---
 load_dotenv() # Load environment variables from .env file
@@ -24,10 +22,11 @@ if not os.path.exists(UPLOAD_FOLDER):
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # Optional: Limit upload size (e.g., 16MB)
 
+
 # --- Groq API Details ---
 GROQ_API_URL = os.getenv("GROQ_API_URL")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = "deepseek-r1-distill-qwen-32b" # Or "mixtral-8x7b-32768" or your preferred model
+GROQ_MODEL = "meta-llama/llama-4-maverick-17b-128e-instruct"
 
 # --- In-Memory Storage (Replace with DB/Cache for production) ---
 # Simple dictionary to store extracted text associated with a unique ID
@@ -204,11 +203,10 @@ def ask_question():
     payload = {
         "model": GROQ_MODEL,
         "messages": prompt_messages,
-        "temperature": 0.7, # Adjust as needed
-        "max_tokens": 500,  # Adjust based on expected answer length & model limits
+        "temperature": 0.7,
+        "max_tokens": 10000, 
         "top_p": 1,
         "stop": None,
-        # "stream": False, # Set to True if you want streaming responses
     }
 
     try:
