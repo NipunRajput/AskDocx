@@ -123,7 +123,7 @@ export default function MainContent() {
     // Main container for the content area
     // Apply dark mode classes directly or use a parent class on <html> driven by ThemeContext
     <div className={`
-        pt-20 pb-12 px-4 min-h-[calc(100vh-80px)]
+        pt-40 pb-30 px-4 min-h-[calc(100vh-80px)]
         ${theme === 'dark' ? 'bg-neutral-900 text-neutral-200' : 'bg-gray-100 text-gray-800'}
         transition-colors duration-300 ease-in-out
       `}>
