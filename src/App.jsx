@@ -2,6 +2,7 @@ import Header from "./components/header";
 import Footer from "./components/footer";
 import MainContent from "./pages/MainContent";
 import Result from "./pages/Result";
+import AuthPage from './auth/login'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 export default function App() {
@@ -13,6 +14,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<MainContent />} />
             <Route path="/result" element={<Result />} />
+            <Route path="/login" element={<AuthPage />} />
           </Routes>
         </main>
         <Footer />
