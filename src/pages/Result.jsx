@@ -96,7 +96,7 @@ export default function Result() {
     }
     if (!questionText) {
       setError('Please enter a question.');
-      setTimeout(() => setError(''), 3000); // Clear error after 3s
+      setTimeout(() => setError(''), 3000);
       return;
     }
 

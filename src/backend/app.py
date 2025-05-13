@@ -14,6 +14,8 @@ import requests
 import PyPDF2
 import docx
 import logging
+from docx.opc.exceptions import PackageNotFoundError
+import docx2txt                                          # new dependency
 
 """AskDocx – unified backend (file processing + JWT auth)"""
 
@@ -78,19 +80,31 @@ with app.app_context():
 # Helper – text extraction
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Helper – text extraction
+# ---------------------------------------------------------------------------
+
 def extract_text_from_pdf(filepath: str) -> str:
-    text = ""
-    with open(filepath, "rb") as f:
-        reader = PyPDF2.PdfReader(f)
-        for page in reader.pages:
-            page_text = page.extract_text()
-            if page_text:
-                text += page_text + "\n"
-    return text
+    try:
+        reader = PyPDF2.PdfReader(filepath)
+        return "\n".join(page.extract_text() or "" for page in reader.pages)
+    except Exception as pdf_err:
+        raise ValueError(f"PDF read error: {pdf_err}")
 
 def extract_text_from_docx(filepath: str) -> str:
-    doc = docx.Document(filepath)
-    return "\n".join(p.text for p in doc.paragraphs)
+    """
+    python-docx chokes if the core-props 'subject' is not a string.
+    Fall back to docx2txt when that happens.
+    """
+    try:
+        return "\n".join(p.text for p in docx.Document(filepath).paragraphs)
+    except ValueError as bad_meta:
+        if "Subject must be a string" in str(bad_meta):
+            # silent fallback – still raise if *something else* is wrong
+            return docx2txt.process(filepath)
+        raise
+    except PackageNotFoundError as corrupt:
+        raise ValueError(f"Corrupt DOCX: {corrupt}")
 
 def extract_text(filepath: str) -> str:
     ext = filepath.rsplit(".", 1)[1].lower()

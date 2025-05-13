@@ -4,9 +4,6 @@ import { useTheme } from '../layout/ThemeContext';
 import {useAuth} from "../auth/AuthContext";
 // Assuming ThemeContext.js is in the same folder or adjust path
 
-
-
-// --- Helper Icons (Keep these as they are) ---
 const UploadIcon = () => (
   <svg className="mx-auto h-12 w-12 text-zinc-400 dark:text-zinc-500 group-hover:text-indigo-500 dark:group-hover:text-indigo-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
     <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
@@ -37,23 +34,21 @@ const MoonIcon = () => (
     <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
   </svg>
 );
-// --- End Helper Icons ---
 
 
-// Define your Flask backend URL (replace if it's hosted elsewhere)
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'; // Use env variable or default
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
 export default function MainContent() {
   
   const navigate = useNavigate();
-  const { theme, toggleTheme } = useTheme(); // Use theme from context
+  const { theme, toggleTheme } = useTheme();
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileError, setFileError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const {token} = useAuth();
 
-  // Logic for file handling remains the same
+
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     setUploadSuccess(false);
@@ -93,6 +88,11 @@ export default function MainContent() {
         headers: { Authorization: `Bearer ${token}` },
         body: formData,  
       });
+      if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || err.msg || response.statusText);
+        }
+
 
       const result = await response.json();
 
