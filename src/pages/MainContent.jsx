@@ -126,6 +126,8 @@ export default function MainContent() {
     }
   };
 
+  
+
   return (
     // Main container for the content area
     // Apply dark mode classes directly or use a parent class on <html> driven by ThemeContext

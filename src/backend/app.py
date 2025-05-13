@@ -15,7 +15,14 @@ import PyPDF2
 import docx
 import logging
 from docx.opc.exceptions import PackageNotFoundError
-import docx2txt                                          # new dependency
+import docx2txt
+import docx  
+           
+           
+           
+                               # new dependency
+
+
 
 """AskDocx – unified backend (file processing + JWT auth)"""
 
@@ -25,7 +32,12 @@ import docx2txt                                          # new dependency
 load_dotenv()  # Load variables from .env
 
 app = Flask(__name__)
-CORS(app)
+CORS(
+    app,
+    resources={r"/api/*": {"origins": "http://localhost:5173"}},
+    allow_headers=["Content-Type", "Authorization"],
+    expose_headers=["Authorization"],
+)
 
 # Database ---------------------------------------------------------------
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -41,6 +53,9 @@ db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
+
+from datetime import timedelta
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=2)
 # Uploads ---------------------------------------------------------------
 UPLOAD_FOLDER = os.path.join(basedir, "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -92,19 +107,15 @@ def extract_text_from_pdf(filepath: str) -> str:
         raise ValueError(f"PDF read error: {pdf_err}")
 
 def extract_text_from_docx(filepath: str) -> str:
-    """
-    python-docx chokes if the core-props 'subject' is not a string.
-    Fall back to docx2txt when that happens.
-    """
     try:
+        # 1 – try python-docx first (good for well-formed docs)
         return "\n".join(p.text for p in docx.Document(filepath).paragraphs)
-    except ValueError as bad_meta:
-        if "Subject must be a string" in str(bad_meta):
-            # silent fallback – still raise if *something else* is wrong
-            return docx2txt.process(filepath)
-        raise
-    except PackageNotFoundError as corrupt:
-        raise ValueError(f"Corrupt DOCX: {corrupt}")
+    except Exception as err:
+        # 2 – if **any** error occurs (metadata, corruption, etc.)
+        #     fall back to docx2txt, which ignores metadata completely
+        print("[docx] fallback because:", err)
+        return docx2txt.process(filepath)
+    
 
 def extract_text(filepath: str) -> str:
     ext = filepath.rsplit(".", 1)[1].lower()
@@ -253,6 +264,7 @@ def ask_question():
 @app.route("/")
 def index():
     return "AskDocx backend is running!"
+
 
 # ---------------------------------------------------------------------------
 # Entrypoint
