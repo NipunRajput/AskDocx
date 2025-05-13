@@ -21,7 +21,7 @@ import ForgotPassword from './auth/ForgotPassword';
    ─────────────────────────────── */
 function RequireAuth({ children }) {
   const { token } = useAuth();
-  /* console.log("RequireAuth token =", token); */
+  /* console.log("RequireAuth token =", token); */   
   return token ? children : <Navigate to="/login" replace />;
 }
 

@@ -1,9 +1,12 @@
-import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react'; // useEffect might not be needed if using context for root class
-import { useTheme } from '../layout/ThemeContext';
-import {useAuth} from "../auth/AuthContext";
-// Assuming ThemeContext.js is in the same folder or adjust path
+// src/components/MainContent.jsx (or your path)
 
+import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useTheme } from '../layout/ThemeContext';
+import { useAuth } from "../auth/AuthContext";
+
+// --- Icons (UploadIcon, CheckCircleIcon, XCircleIcon, LoadingSpinner, SunIcon, MoonIcon) ---
+// (Keep your existing icon definitions here - I'm omitting them for brevity)
 const UploadIcon = () => (
   <svg className="mx-auto h-12 w-12 text-zinc-400 dark:text-zinc-500 group-hover:text-indigo-500 dark:group-hover:text-indigo-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
     <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
@@ -16,38 +19,34 @@ const XCircleIcon = () => (
   <svg className="w-5 h-5 mr-2 inline-block" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
 );
 const LoadingSpinner = () => (
-  // Adjusted for better visibility in both themes, assuming button text is light or dark accordingly
   <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white dark:text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
   </svg>
 );
-// --- Theme Icons ---
 const SunIcon = () => (
   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
     <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm0 15a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm8-5a1 1 0 01-.999.999H17a1 1 0 110-2h.001A1 1 0 0118 10zm-17 .001H3a1 1 0 110-2h-.001a1 1 0 110 2zM16.071 4.929a1 1 0 01.707.293l1.414 1.414a1 1 0 11-1.414 1.414l-1.414-1.414a1 1 0 01.707-1.707zm-12.142 9.142a1 1 0 01.707.293l1.414 1.414a1 1 0 01-1.414 1.414l-1.414-1.414a1 1 0 01.707-1.707zM17.485 16.071a1 1 0 01-.001-1.415l1.414-1.414a1 1 0 111.414 1.414l-1.414 1.414a1 1 0 01-1.413-.001zM4.929 3.929a1 1 0 01-.001-1.415l1.414-1.414a1 1 0 111.414 1.414L4.928 5.343a1 1 0 01-1.413-.001zM10 5a5 5 0 100 10 5 5 0 000-10z"></path>
   </svg>
 );
-
 const MoonIcon = () => (
   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
     <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
   </svg>
 );
+// --- End Icons ---
 
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
 export default function MainContent() {
-  
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileError, setFileError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
-  const {token} = useAuth();
-
+  const { token } = useAuth();
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
@@ -86,18 +85,13 @@ export default function MainContent() {
       const response = await fetch(`${BACKEND_URL}/api/upload-and-process`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
-        body: formData,  
+        body: formData,
       });
-      if (!response.ok) {
-          const err = await response.json().catch(() => ({}));
-          throw new Error(err.error || err.msg || response.statusText);
-        }
+      
+      const result = await response.json(); // Parse JSON regardless of response.ok status to get error message
 
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || `Upload failed: ${response.statusText} (Status: ${response.status})`);
+      if (!response.ok) { // Check response.ok after parsing
+        throw new Error(result.error || result.message || `Upload failed: ${response.statusText} (Status: ${response.status})`);
       }
 
       setIsProcessing(false);
@@ -108,9 +102,9 @@ export default function MainContent() {
         setTimeout(() => {
           navigate('/result', {
             state: {
-              fileDetails: {
+              fileDetails: { // This 'id' will now be the integer chat session ID from user_documents table
                 name: result.filename,
-                id: result.documentId
+                id: result.documentId 
               }
             }
           });
@@ -126,19 +120,20 @@ export default function MainContent() {
     }
   };
 
-  
+  // --- NEW: Handler to navigate to chat history view ---
+  const handleViewHistory = () => {
+    navigate('/result', { state: { showHistoryList: true } });
+  };
 
   return (
-    // Main container for the content area
-    // Apply dark mode classes directly or use a parent class on <html> driven by ThemeContext
     <div className={`
-        pt-40 pb-30 px-4 min-h-[calc(100vh-80px)]
+        pt-20 sm:pt-24 md:pt-32 pb-20 px-4 min-h-[calc(100vh-80px)] // Adjusted padding top
         ${theme === 'dark' ? 'bg-neutral-900 text-neutral-200' : 'bg-gray-100 text-gray-800'}
         transition-colors duration-300 ease-in-out
       `}>
 
-      {/* Theme Toggle Button - Position as needed */}
-      <div className="absolute top-4 right-4"> {/* Example positioning */}
+      {/* Theme Toggle Button */}
+      <div className="absolute top-4 right-4">
         <button
           onClick={toggleTheme}
           className={`
@@ -154,7 +149,6 @@ export default function MainContent() {
         </button>
       </div>
 
-
       {/* Card container for the uploader */}
       <div className={`
           p-6 sm:p-8 rounded-xl shadow-2xl max-w-xl mx-auto
@@ -169,9 +163,9 @@ export default function MainContent() {
         <p className={`
             text-center mb-8 text-sm sm:text-base
             ${theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500'}
-          `}>Upload a PDF or DOCX file to analyze.</p>
+          `}>Upload a PDF or DOCX file to start a new chat.</p>
 
-        {/* Custom File Input Area */}
+        {/* Custom File Input Area (same as before) */}
         <div className="mb-6">
           <label
             htmlFor="file-upload"
@@ -191,17 +185,16 @@ export default function MainContent() {
           >
             <input
               id="file-upload"
-              name="File"
+              name="File" // Note: 'name' attribute is 'File' with capital F, usually lowercase 'file'
               type="file"
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               onChange={handleFileChange}
               disabled={isProcessing}
             />
-
             <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-2">
-              {!selectedFile && !isProcessing && !uploadSuccess && <UploadIcon />} {/* UploadIcon will use its own dark mode aware classes */}
-              {isProcessing && <LoadingSpinner />} {/* Spinner text color might need adjustment based on button's theme */}
+              {!selectedFile && !isProcessing && !uploadSuccess && <UploadIcon />}
+              {isProcessing && <LoadingSpinner />}
               <p className={`
                   mb-2 text-sm font-semibold break-all
                   ${isProcessing
@@ -251,7 +244,7 @@ export default function MainContent() {
             disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none
             ${theme === 'dark'
               ? 'bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-800 focus:ring-indigo-500 disabled:hover:bg-indigo-600'
-              : 'bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500 disabled:hover:bg-indigo-600' // Light mode button can retain similar indigo style or be changed
+              : 'bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500 disabled:hover:bg-indigo-600'
             }
           `}
         >
@@ -261,6 +254,24 @@ export default function MainContent() {
             uploadSuccess ? 'Success! Redirecting...' : 'Upload and Process File'
           )}
         </button>
+
+        {/* --- NEW: View Chat History Button --- */}
+        <div className="mt-6 text-center">
+            <button
+                type="button"
+                onClick={handleViewHistory}
+                className={`
+                    px-6 py-2.5 rounded-lg shadow-md font-medium
+                    transition-all duration-200 ease-in-out transform active:scale-[0.98]
+                    ${theme === 'dark'
+                        ? 'bg-zinc-600 text-white hover:bg-zinc-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-800 focus:ring-zinc-500'
+                        : 'bg-gray-600 text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-gray-500'
+                    }
+                `}
+            >
+                View Chat History
+            </button>
+        </div>
 
       </div>
     </div>

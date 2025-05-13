@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 import requests
 import PyPDF2
 import docx
+import json
 # import logging # logging is already imported above
 from docx.opc.exceptions import PackageNotFoundError
 import docx2txt
@@ -71,7 +72,7 @@ GROQ_MODEL = "meta-llama/llama-4-maverick-17b-128e-instruct" # As per your origi
 documents_store: dict[str, dict[str, str]] = {}
 
 # ---------------------------------------------------------------------------
-# Database model
+# Database model:  Login Page
 # ---------------------------------------------------------------------------
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -83,6 +84,42 @@ class User(db.Model):
         return cls(email=email, pw_hash=bcrypt.generate_password_hash(password).decode())
 
 # Create tables on first run
+
+
+# ---------------------------------------------------------------------------
+# Database model  : Chat Store
+# ---------------------------------------------------------------------------
+
+
+class UserDocument(db.Model):
+    __tablename__ = 'user_documents'  # Explicitly naming the table
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    document_name = db.Column(db.String(255), nullable=False)
+    extracted_text = db.Column(db.Text, nullable=False)  # Use db.Text; maps to TEXT/LONGTEXT
+    
+    # For chat history:
+    # Option 1: Using SQLAlchemy's JSON type (recommended if DB supports it, e.g., MySQL 5.7.8+)
+    chat = db.Column(db.JSON, nullable=True) 
+    # Option 2: If DB doesn't support JSON type well, or you prefer TEXT
+    # chat = db.Column(db.Text, nullable=True) # Store as a JSON string
+
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.now())
+    updated_at = db.Column(db.TIMESTAMP, server_default=db.func.now(), onupdate=db.func.now())
+
+    # Relationship to User (optional but good for ORM features)
+    user = db.relationship('User', backref=db.backref('user_documents', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<UserDocument {self.id} - {self.document_name}>'
+
+# After defining models, ensure they are created:
+# (This line is likely already in your app.py, ensure UserDocument is defined before it runs)
+# with app.app_context():
+#     db.create_all()
+
+
 with app.app_context():
     db.create_all()
 
@@ -156,124 +193,210 @@ def login():
 @app.route("/api/upload-and-process", methods=["POST"])
 @jwt_required()
 def upload_and_process():
-    current_user_identity = get_jwt_identity()  # This will be the string representation of user.id
+    current_user_identity_str = get_jwt_identity() # This is string form of user.id
+    try:
+        current_user_id = int(current_user_identity_str)
+    except ValueError:
+        logging.error(f"Invalid user ID format in JWT: {current_user_identity_str}")
+        return {"success": False, "error": "Invalid user session."}, 401
 
     if "document" not in request.files:
         return {"success": False, "error": "No document file part in the request"}, 400
 
     file = request.files["document"]
-
     if file.filename == "":
         return {"success": False, "error": "No selected file"}, 400
 
-    filepath = "" # Initialize filepath to ensure it's defined in case of early exit
+    filepath = ""
     if file and allowed_file(file.filename):
-        original_filename = file.filename
-        secure_name = secure_filename(original_filename) # original_filename is already secure_filename in practice here
-        temp_filename = f"{uuid.uuid4()}_{secure_name}"
+        original_filename = secure_filename(file.filename) # Ensure filename is secure
+        temp_filename = f"{uuid.uuid4()}_{original_filename}"
         filepath = os.path.join(app.config["UPLOAD_FOLDER"], temp_filename)
 
         try:
             file.save(filepath)
-            extracted_text = extract_text(filepath)
+            extracted_text_content = extract_text(filepath)
 
-            doc_id = str(uuid.uuid4())
-            documents_store[doc_id] = {
-                "owner": current_user_identity, # Storing string ID
-                "filename": original_filename,
-                "text": extracted_text,
+            # Initial AI message for the chat history
+            initial_chat_message = {
+                "sender": "ai", 
+                "text": f"File \"{original_filename}\" processed! Ask me anything about its content."
             }
-            # It's good practice to remove the temp file after processing
-            # os.remove(filepath) # Moved to finally block
+
+            new_user_doc = UserDocument(
+                user_id=current_user_id,
+                document_name=original_filename,
+                extracted_text=extracted_text_content,
+                chat=[initial_chat_message] # Initialize chat history as a list with the first message
+            )
+            db.session.add(new_user_doc)
+            db.session.commit()
 
             return {
                 "success": True,
-                "documentId": doc_id,
-                "message": f'File "{original_filename}" processed successfully.',
-                "filename": original_filename, # Return original filename as per frontend expectation
+                "documentId": new_user_doc.id, # This is the new integer ID for the chat session
+                "message": f'File "{original_filename}" processed successfully and chat session created.',
+                "filename": original_filename,
             }, 200
 
-        except ValueError as ve: # Catch specific text extraction errors
+        except ValueError as ve:
             logging.exception("Text extraction failed during upload-process")
-            return {"success": False, "error": str(ve)}, 400 # Bad request if file content is problematic
+            return {"success": False, "error": str(ve)}, 400
         except Exception as e:
             logging.exception("Upload-process failed")
+            db.session.rollback() # Rollback in case of DB error during commit
             return {"success": False, "error": f"An unexpected error occurred: {str(e)}"}, 500
         finally:
-            if filepath and os.path.exists(filepath): # Ensure filepath is defined and exists
+            if filepath and os.path.exists(filepath):
                 os.remove(filepath)
-
-
-    return {"success": False, "error": "File type not allowed"}, 400
+    else:
+        return {"success": False, "error": "File type not allowed"}, 400
 
 @app.route("/api/ask-question", methods=["POST"])
 @jwt_required()
 def ask_question():
-    current_user_identity = get_jwt_identity() # This is a string
-    data = request.get_json() or {}
-    doc_id = data.get("documentId")
-    question = data.get("question")
+    current_user_identity_str = get_jwt_identity()
+    try:
+        current_user_id = int(current_user_identity_str)
+    except ValueError:
+        logging.error(f"Invalid user ID format in JWT for ask-question: {current_user_identity_str}")
+        return {"success": False, "error": "Invalid user session."}, 401
 
-    if not doc_id or not question:
+    data = request.get_json() or {}
+    doc_session_id = data.get("documentId") # This is UserDocument.id
+    question_text = data.get("question")
+
+    if not doc_session_id or not question_text:
         return {"success": False, "error": "Missing documentId or question"}, 400
 
-    doc = documents_store.get(doc_id)
-    # Ensure 'owner' in doc is also a string for correct comparison
-    if not doc or doc.get("owner") != current_user_identity:
-        return {"success": False, "error": "Document not found or access denied"}, 404
+    user_doc = UserDocument.query.filter_by(id=doc_session_id, user_id=current_user_id).first()
 
-    context_text = doc["text"]
-    # original_filename = doc["filename"] # Not used in this function currently
+    if not user_doc:
+        return {"success": False, "error": "Document session not found or access denied"}, 404
 
+    context_text = user_doc.extracted_text
+
+    # --- Groq API Call (remains largely the same) ---
     prompt_messages = [
         {
             "role": "system",
             "content": (
                 "You are an expert assistant. Answer strictly from the document text provided. "
-                "If the answer isn't present, reply ‘The answer is not found in the provided document text.’\n\n"  # noqa
+                "If the answer isn't present, reply ‘The answer is not found in the provided document text.’\n\n"
                 "--- Document Context Start ---\n" + context_text + "\n--- Document Context End ---"
             ),
         },
-        {"role": "user", "content": question},
+        {"role": "user", "content": question_text},
     ]
 
     if not GROQ_API_KEY or not GROQ_API_URL:
         logging.error("Groq API not configured.")
         return {"success": False, "error": "Groq API not configured"}, 500
 
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json",
-    }
+    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
     payload = {
-        "model": GROQ_MODEL,
-        "messages": prompt_messages,
-        "temperature": 0.7,
-        "max_tokens": 1000, # Consider if this is appropriate for all use cases
-        "top_p": 1,
+        "model": GROQ_MODEL, "messages": prompt_messages, "temperature": 0.7,
+        "max_tokens": 2048, "top_p": 1
     }
+    logging.info(f"Sending payload to Groq for doc_session_id {doc_session_id}: {json.dumps(payload, indent=2)}")
 
     try:
         resp = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=60)
-        resp.raise_for_status() # Will raise an HTTPError for bad responses (4xx or 5xx)
+        if resp.status_code != 200:
+            # (Include your enhanced error logging for Groq's response from previous steps here)
+            error_content = resp.text
+            try:
+                error_json = resp.json(); detail_message = json.dumps(error_json)
+            except ValueError: detail_message = error_content
+            logging.error(f"Groq API Error - Status: {resp.status_code}, Detail: {detail_message}")
+        resp.raise_for_status()
+
         ai_response_data = resp.json()
         ai_answer = ai_response_data.get("choices", [{}])[0].get("message", {}).get("content")
 
         if ai_answer is None:
-            logging.error(f"Could not parse answer from Groq response. Full response: {ai_response_data}")
             raise ValueError("Could not parse answer from Groq response")
+
+        # --- Update Chat History in Database ---
+        current_chat_history = list(user_doc.chat) if user_doc.chat else [] # Ensure it's a list
+
+        current_chat_history.append({"sender": "user", "text": question_text})
+        current_chat_history.append({"sender": "ai", "text": ai_answer})
+
+        user_doc.chat = current_chat_history # Assign the modified list back
+        db.session.commit()
+
         return {"success": True, "answer": ai_answer}, 200
 
-    except requests.exceptions.RequestException as req_err: # More specific network/HTTP error
-        logging.exception("Groq API request failed")
-        return {"success": False, "error": f"Groq API communication error: {req_err}"}, 503
-    except ValueError as val_err: # For parsing errors specifically
-        logging.exception("Groq API response parsing failed")
+    # (Keep your existing detailed exception handling for Groq API calls)
+    except requests.exceptions.HTTPError as http_err:
+        error_detail_from_response = "No additional error detail in response body." # ... (copy from previous)
+        logging.exception(f"Groq API HTTPError. Status: {http_err.response.status_code if http_err.response else 'N/A'}. Detail: {error_detail_from_response}")
+        frontend_error_message = f"Groq API request error (Status: {http_err.response.status_code if http_err.response else 'N/A'}). Details: {error_detail_from_response}"
+        return {"success": False, "error": frontend_error_message}, http_err.response.status_code if http_err.response else 503
+    except requests.exceptions.RequestException as req_err: # ... (copy from previous)
+         logging.exception("Groq API communication (non-HTTP) failure")
+         return {"success": False, "error": f"Groq API communication error: {req_err}"}, 503
+    except ValueError as val_err: # ... (copy from previous)
+        logging.exception("Groq API response parsing failed or other ValueError")
+        db.session.rollback() # Rollback if error occurred before/during chat update
         return {"success": False, "error": str(val_err)}, 500
-    except Exception as e:
-        logging.exception("Groq API call failed with an unexpected error")
-        return {"success": False, "error": f"An unexpected Groq API error occurred: {e}"}, 503
-    
+    except Exception as e: # ... (copy from previous)
+        logging.exception("Groq API call or chat update failed with an unexpected error")
+        db.session.rollback()
+        return {"success": False, "error": f"An unexpected error occurred: {e}"}, 503    
+
+# ---------------------------------------------------------------------------
+# User Documents
+# ---------------------------------------------------------------------------
+
+@app.route("/api/user-documents", methods=["GET"])
+@jwt_required()
+def list_user_documents():
+    current_user_identity_str = get_jwt_identity()
+    try:
+        current_user_id = int(current_user_identity_str)
+    except ValueError:
+        return {"success": False, "error": "Invalid user session."}, 401
+
+    documents = UserDocument.query.filter_by(user_id=current_user_id).order_by(UserDocument.updated_at.desc()).all()
+
+    result = [
+        {
+            "id": doc.id,
+            "document_name": doc.document_name,
+            "created_at": doc.created_at.isoformat() if doc.created_at else None,
+            "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
+            "preview": (doc.chat[0]['text'] if doc.chat and len(doc.chat)>0 and doc.chat[0]['sender']=='ai' 
+                        else (doc.chat[1]['text'] if doc.chat and len(doc.chat)>1 and doc.chat[1]['sender']=='ai' else "Chat started."))[:100] # A short preview
+        } for doc in documents
+    ]
+    return {"success": True, "documents": result}, 200
+
+@app.route("/api/user-documents/<int:doc_session_id>", methods=["GET"])
+@jwt_required()
+def get_user_document_session(doc_session_id):
+    current_user_identity_str = get_jwt_identity()
+    try:
+        current_user_id = int(current_user_identity_str)
+    except ValueError:
+        return {"success": False, "error": "Invalid user session."}, 401
+
+    user_doc = UserDocument.query.filter_by(id=doc_session_id, user_id=current_user_id).first()
+
+    if not user_doc:
+        return {"success": False, "error": "Document session not found or access denied"}, 404
+
+    return {
+        "success": True,
+        "document_session": {
+            "id": user_doc.id,
+            "document_name": user_doc.document_name,
+            "chat_history": user_doc.chat if user_doc.chat else [], # Return chat history
+            "created_at": user_doc.created_at.isoformat() if user_doc.created_at else None,
+            "updated_at": user_doc.updated_at.isoformat() if user_doc.updated_at else None,
+        }
+    }, 200
 
 
 # ---------------------------------------------------------------------------
