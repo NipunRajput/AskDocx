@@ -1,4 +1,5 @@
 import React from 'react';
+import {Link} from 'react-router-dom';
 import { useTheme } from '../layout/ThemeContext';
 import {image} from '../db' 
 import ProfileMenu from "../auth/profilemenu"; 
@@ -61,14 +62,14 @@ export default function Header() {
       ${theme === 'dark' ? 'bg-zinc-800 text-white' : 'bg-gray-100 text-zinc-900 border-b border-gray-200'}
     `}>
       <div className='container mx-auto flex items-center justify-between px-4 sm:px-6 py-3'>
-        <a href="/" className="flex items-center">
+        <Link to="/home" className="flex items-center">
           <img
             className='h-8 sm:h-10 w-auto' // Adjusted height for responsiveness
             src={currentLogo} // Use the theme-appropriate logo
             alt="Agent.ai Logo"
             onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/150x50/cccccc/000000?text=Logo+Error"; }} // Basic fallback
           />
-        </a>
+        </Link>
 
         {/* Desktop Navigation (currently commented out) */}
         <nav className="hidden md:flex items-center space-x-6">

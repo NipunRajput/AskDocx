@@ -15,6 +15,7 @@ import Register     from "./auth/Register";
 
 import { useAuth }  from "./auth/AuthContext";  // ⬅ make sure this file exists
 import ForgotPassword from './auth/ForgotPassword';
+import Landing from "./pages/Landing";
 
 /* ───────────────────────────────
    Route-guard helpers
@@ -22,7 +23,7 @@ import ForgotPassword from './auth/ForgotPassword';
 function RequireAuth({ children }) {
   const { token } = useAuth();
   /* console.log("RequireAuth token =", token); */   
-  return token ? children : <Navigate to="/login" replace />;
+  return token ? children : <Navigate to="/home" replace />;
 }
 
 function RedirectIfAuth({ children }) {
@@ -81,6 +82,8 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             {/* ── catch-all ───────────────────────────────── */}
             <Route path="*" element={<Navigate to="/" replace />} />
+
+             <Route path="/home" element={<Landing />} />
           </Routes>
         </main>
 
