@@ -280,14 +280,14 @@ def ask_question():
 # Forget Password
 # ---------------------------------------------------------------------------
 
-@app.route('/forgot-password', methods=['POST'])
+@app.route('/api/forgot-password', methods=['POST'])
 def forgot_password():
     data = request.get_json()
     email = data.get('email')
     user = User.query.filter_by(email=email).first()
     if user:
         token = create_access_token(identity=user.id, expires_delta=timedelta(minutes=15))
-        reset_link = f"http://localhost:5173/reset-password/{token}"
+        reset_link = f"http://localhost:5173/api/reset-password/{token}"
         send_email(user.email, "Reset your password", f"Reset link: {reset_link}")
     return jsonify({"message": "If the email is registered, a reset link will be sent."})
 # ---------------------------------------------------------------------------
