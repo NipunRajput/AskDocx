@@ -16,6 +16,7 @@ export default function AuthPage() {
     try {
       if (authMode === 'login') {
         await login(email, password);
+        navigate('/');
       } else {
         if (password !== confirmPassword) {
           throw new Error('Passwords do not match');

@@ -1,14 +1,15 @@
-import {createRoot} from 'react-dom/client';
-import App from './App.jsx';
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
 import { ThemeProvider } from './layout/ThemeContext';
-import AuthProvider from './auth/AuthContext.jsx'
-const root=createRoot(document.getElementById('root'));
+import AuthProvider from "./auth/AuthContext";
 
-
-root.render(
-    <ThemeProvider>
-        <AuthProvider>
-            <App />
-        </AuthProvider>
-    </ThemeProvider>
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+        <ThemeProvider>
+            <AuthProvider>
+                <App />
+            </AuthProvider>
+        </ThemeProvider>
+  </React.StrictMode>
 );
