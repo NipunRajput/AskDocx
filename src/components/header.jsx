@@ -1,9 +1,8 @@
-
-
 import React from 'react';
 import { useTheme } from '../layout/ThemeContext';
 import {image} from '../db' 
-
+import ProfileMenu from "../auth/profilemenu"; 
+import { useAuth } from "../auth/AuthContext";
 const placeholderLightLogo = image[0].image3;
 const placeholderDarkLogo = image[0].image1;
 
@@ -38,6 +37,7 @@ const MoonIcon = () => (
 
 export default function Header() {
   const { theme, toggleTheme } = useTheme(); // Get theme state and toggle function
+  const { user } = useAuth();
 
   // Determine which logo to use based on the current theme
   // Replace these with your actual logo variables from your db or imports
@@ -94,17 +94,19 @@ export default function Header() {
           </button>
 
           {/* Desktop Log In Button */}
+
+          {/* ---------- DESKTOP AUTH AREA ---------- */}
           <div className="hidden md:block">
-            <a href="/login" className={`
+            {user
+              ? <ProfileMenu />                                   // logged-in
+              : <a href="/login" className={`
                 font-medium py-2 px-4 rounded-md
                 transition-colors duration-200 ease-in-out
                 ${theme === 'dark'
                   ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
                   : 'bg-indigo-500 hover:bg-indigo-600 text-white' // Or a different style for light mode
                 }
-            `}>
-              Log In
-            </a>
+            `}>Log in</a>} 
           </div>
 
           {/* Mobile Menu Button */}
@@ -135,17 +137,15 @@ export default function Header() {
             md:hidden absolute top-full left-0 w-full shadow-lg py-2
             ${theme === 'dark' ? 'bg-zinc-800 border-t border-zinc-700' : 'bg-gray-100 border-t border-gray-200'}
         `}>
-          <div className="px-4 py-2">
-            <a href="/login" className={`
+           <div className="px-4 py-2">
+          {user ? <ProfileMenu />: <a href="/login" className={`
                 block w-full text-center font-medium py-2.5 px-4 rounded-md
                 transition-colors duration-200 ease-in-out
                 ${theme === 'dark'
                   ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
                   : 'bg-indigo-500 hover:bg-indigo-600 text-white'
                 }
-            `}>
-              Log In
-            </a>
+            `}>Log in</a>}
           </div>
           {/* Add other mobile navigation links here if needed */}
           {/* <a href="/features" className={`block px-4 py-2 ${theme === 'dark' ? 'text-zinc-300 hover:bg-zinc-700' : 'text-zinc-700 hover:bg-gray-200'}`}>Features</a> */}

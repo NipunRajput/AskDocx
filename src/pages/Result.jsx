@@ -4,7 +4,10 @@
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
-import { useTheme } from '../layout/ThemeContext'; // Adjust path if ThemeContext.js is elsewhere
+import { useTheme } from '../layout/ThemeContext';
+ // Adjust path if ThemeContext.js is elsewhere
+
+ import {useAuth} from '../auth/AuthContext'
 
 // --- Reusable Icons (Keep these as they are) ---
 const LoadingSpinner = ({ theme }) => ( // Accept theme prop for potential color adjustments
@@ -58,6 +61,7 @@ export default function Result() {
 
   const chatHistoryRef = useRef(null);
   const textAreaRef = useRef(null);
+  const {token} = useAuth();
 
   // Effect to check for file details on load
   useEffect(() => {
@@ -105,8 +109,8 @@ export default function Result() {
     try {
       const response = await fetch(`${BACKEND_URL}/api/ask-question`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentId: fileDetails.id, question: questionText }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ documentId: fileDetails.id, question: questionText }),   
       });
 
       const result = await response.json();

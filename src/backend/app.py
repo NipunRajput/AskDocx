@@ -3,198 +3,211 @@ import uuid
 import logging
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
+from flask_bcrypt import Bcrypt
+from flask_jwt_extended import (
+    JWTManager, create_access_token, jwt_required, get_jwt_identity
+)
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 import requests
 import PyPDF2
 import docx
+import logging
 
-# --- Configuration ---
-load_dotenv() # Load environment variables from .env file
+"""AskDocx – unified backend (file processing + JWT auth)"""
+
+# ---------------------------------------------------------------------------
+# Configuration & App Setup
+# ---------------------------------------------------------------------------
+load_dotenv()  # Load variables from .env
 
 app = Flask(__name__)
-CORS(app) # Enable CORS for requests from your React frontend
+CORS(app)
 
-# Configure upload folder (optional, adjust as needed)
-UPLOAD_FOLDER = 'uploads'
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # Optional: Limit upload size (e.g., 16MB)
+# Database ---------------------------------------------------------------
+basedir = os.path.abspath(os.path.dirname(__file__))
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+"mysql+pymysql://askdocx_user:dev@127.0.0.1:3306/askdocx?charset=utf8mb4"
+)
 
 
-# --- Groq API Details ---
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "SET_A_REAL_SECRET")
+
+db = SQLAlchemy(app)
+bcrypt = Bcrypt(app)
+jwt = JWTManager(app)
+
+# Uploads ---------------------------------------------------------------
+UPLOAD_FOLDER = os.path.join(basedir, "uploads")
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB
+
+ALLOWED_EXTENSIONS = {"pdf", "docx"}
+
+def allowed_file(filename: str) -> bool:
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# Groq API --------------------------------------------------------------
 GROQ_API_URL = os.getenv("GROQ_API_URL")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_MODEL = "meta-llama/llama-4-maverick-17b-128e-instruct"
 
-# --- In-Memory Storage (Replace with DB/Cache for production) ---
-# Simple dictionary to store extracted text associated with a unique ID
-# WARNING: This data is lost when the Flask server restarts!
-documents_store = {}
+# In‑memory store (replace with Redis / DB for prod)
+documents_store: dict[str, dict[str, str]] = {}
 
-# --- Allowed File Extensions ---
-ALLOWED_EXTENSIONS = {'pdf', 'docx'}
+# ---------------------------------------------------------------------------
+# Database model
+# ---------------------------------------------------------------------------
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    pw_hash = db.Column(db.String(128), nullable=False)
 
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    @classmethod
+    def create(cls, email: str, password: str):
+        return cls(email=email, pw_hash=bcrypt.generate_password_hash(password).decode())
 
-# --- Text Extraction Logic ---
-def extract_text_from_pdf(filepath):
-    """Extracts text from a PDF file."""
+# Create tables on first run
+with app.app_context():
+    db.create_all()
+
+# ---------------------------------------------------------------------------
+# Helper – text extraction
+# ---------------------------------------------------------------------------
+
+def extract_text_from_pdf(filepath: str) -> str:
     text = ""
-    try:
-        with open(filepath, 'rb') as f:
-            reader = PyPDF2.PdfReader(f)
-            for page in reader.pages:
-                page_text = page.extract_text()
-                if page_text: # Check if text extraction returned something
-                    text += page_text + "\n" # Add newline between pages
-        return text
-    except Exception as e:
-        logging.error(f"Error extracting PDF text: {e}")
-        raise ValueError(f"Could not extract text from PDF: {e}")
+    with open(filepath, "rb") as f:
+        reader = PyPDF2.PdfReader(f)
+        for page in reader.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
+    return text
 
-def extract_text_from_docx(filepath):
-    """Extracts text from a DOCX file."""
-    text = ""
-    try:
-        doc = docx.Document(filepath)
-        for para in doc.paragraphs:
-            text += para.text + "\n"
-        return text
-    except Exception as e:
-        logging.error(f"Error extracting DOCX text: {e}")
-        raise ValueError(f"Could not extract text from DOCX: {e}")
+def extract_text_from_docx(filepath: str) -> str:
+    doc = docx.Document(filepath)
+    return "\n".join(p.text for p in doc.paragraphs)
 
-def extract_text(filepath, filename):
-    """Determines file type and calls the appropriate extraction function."""
-    ext = filename.rsplit('.', 1)[1].lower()
-    if ext == 'pdf':
+def extract_text(filepath: str) -> str:
+    ext = filepath.rsplit(".", 1)[1].lower()
+    if ext == "pdf":
         return extract_text_from_pdf(filepath)
-    elif ext == 'docx':
+    if ext == "docx":
         return extract_text_from_docx(filepath)
-    # Add elif for '.doc' if you install 'textract' or another library
-    # elif ext == 'doc':
-    #    import textract
-    #    return textract.process(filepath).decode('utf-8')
-    else:
-        raise ValueError(f"Unsupported file type: {ext}")
+    raise ValueError(f"Unsupported file type: {ext}")
 
-# --- API Routes ---
+# ---------------------------------------------------------------------------
+# Auth Endpoints
+# ---------------------------------------------------------------------------
+@app.post("/api/auth/register")
+def register():
+    data = request.get_json() or {}
+    if not data.get("email") or not data.get("password"):
+        return {"success": False, "error": "Email & password required."}, 400
 
-@app.route('/api/upload-and-process', methods=['POST'])
+    if User.query.filter_by(email=data["email"]).first():
+        return {"success": False, "error": "User already exists."}, 409
+
+    user = User.create(data["email"], data["password"])
+    db.session.add(user)
+    db.session.commit()
+    token = create_access_token(identity=user.id)
+    return {"success": True, "token": token}, 201
+
+@app.post("/api/auth/login")
+def login():
+    data = request.get_json() or {}
+    user = User.query.filter_by(email=data.get("email")).first()
+    if not user or not bcrypt.check_password_hash(user.pw_hash, data.get("password")):
+        return {"success": False, "error": "Invalid credentials."}, 401
+    token = create_access_token(identity=user.id)
+    return {"success": True, "token": token}, 200
+
+# ---------------------------------------------------------------------------
+# Document Endpoints (JWT‑protected)
+# ---------------------------------------------------------------------------
+@app.route("/api/upload-and-process", methods=["POST"])
+@jwt_required()
 def upload_and_process():
-    """
-    Handles file upload, extracts text, stores it, and returns a document ID.
-    Matches the frontend's expectation for the /api/upload-and-process endpoint.
-    """
-    if 'document' not in request.files:
-        return jsonify({'success': False, 'error': 'No document file part in the request'}), 400
+    current_user = get_jwt_identity()  # available if you need per-user scoping
 
-    file = request.files['document']
+    if "document" not in request.files:
+        return {"success": False, "error": "No document file part in the request"}, 400
 
-    if file.filename == '':
-        return jsonify({'success': False, 'error': 'No selected file'}), 400
+    file = request.files["document"]
+
+    if file.filename == "":
+        return {"success": False, "error": "No selected file"}, 400
 
     if file and allowed_file(file.filename):
         original_filename = file.filename
-        # Secure the filename before saving (important!)
         secure_name = secure_filename(original_filename)
-        # Create a unique filename for temporary storage to avoid conflicts
         temp_filename = f"{uuid.uuid4()}_{secure_name}"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], temp_filename)
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], temp_filename)
 
         try:
-            file.save(filepath) # Save the file temporarily
-            logging.info(f"File temporarily saved to: {filepath}")
+            file.save(filepath)
+            extracted_text = extract_text(filepath)
 
-            # Extract text from the saved file
-            extracted_text = extract_text(filepath, secure_name)
-            logging.info(f"Text extracted successfully from {secure_name}. Length: {len(extracted_text)}")
-
-            # Generate a unique ID for this document
             doc_id = str(uuid.uuid4())
-
-            # Store the extracted text in our simple in-memory store
             documents_store[doc_id] = {
-                "filename": original_filename, # Store original name too if needed
-                "text": extracted_text
+                "owner": current_user,
+                "filename": original_filename,
+                "text": extracted_text,
             }
-            logging.info(f"Document stored with ID: {doc_id}")
-
-            # Clean up the temporary file
             os.remove(filepath)
-            logging.info(f"Temporary file deleted: {filepath}")
 
-            # Return success response with the document ID
-            return jsonify({
-                'success': True,
-                'documentId': doc_id,
-                'message': f'File "{original_filename}" processed successfully.',
-                'filename': original_filename # Send back original name for display
-            }), 200
+            return {
+                "success": True,
+                "documentId": doc_id,
+                "message": f'File "{original_filename}" processed successfully.',
+                "filename": original_filename,
+            }, 200
 
-        except ValueError as ve: # Catch extraction errors (incl. unsupported type)
-             logging.error(f"Extraction Error: {ve}")
-             # Clean up if file was saved but extraction failed
-             if os.path.exists(filepath):
-                 os.remove(filepath)
-             return jsonify({'success': False, 'error': str(ve)}), 400
         except Exception as e:
-            logging.error(f"An unexpected error occurred during upload/processing: {e}")
-            # Clean up if file exists after unexpected error
+            logging.exception("Upload‑process failed")
             if os.path.exists(filepath):
                 os.remove(filepath)
-            return jsonify({'success': False, 'error': f'An unexpected error occurred: {e}'}), 500
-    else:
-        return jsonify({'success': False, 'error': 'File type not allowed'}), 400
+            return {"success": False, "error": str(e)}, 500
 
-@app.route('/api/ask-question', methods=['POST'])
+    return {"success": False, "error": "File type not allowed"}, 400
+
+@app.route("/api/ask-question", methods=["POST"])
+@jwt_required()
 def ask_question():
-    """
-    Receives a document ID and a question, retrieves the stored text,
-    queries the Groq API, and returns the answer.
-    """
-    data = request.get_json()
-
-    if not data:
-        return jsonify({'success': False, 'error': 'Invalid JSON payload'}), 400
-
-    doc_id = data.get('documentId')
-    question = data.get('question')
+    current_user = get_jwt_identity()
+    data = request.get_json() or {}
+    doc_id = data.get("documentId")
+    question = data.get("question")
 
     if not doc_id or not question:
-        return jsonify({'success': False, 'error': 'Missing documentId or question in request'}), 400
+        return {"success": False, "error": "Missing documentId or question"}, 400
 
-    # Retrieve the stored document text
-    document_data = documents_store.get(doc_id)
-    if not document_data:
-        return jsonify({'success': False, 'error': 'Invalid document ID or document not found'}), 404
+    doc = documents_store.get(doc_id)
+    if not doc or doc.get("owner") != current_user:
+        return {"success": False, "error": "Document not found or access denied"}, 404
 
-    context_text = document_data.get('text', '')
-    original_filename = document_data.get('filename', 'the document')
+    context_text = doc["text"]
+    original_filename = doc["filename"]
 
-    if not context_text:
-         return jsonify({'success': False, 'error': 'Could not retrieve text for the document ID'}), 500
-
-    # --- Construct the Prompt for Groq ---
-    # Provide context clearly separated from the question
     prompt_messages = [
         {
             "role": "system",
-            "content": f"You are an expert assistant. Analyze the following document context provided below and answer the user's question based *only* on this text. The document's original filename was '{original_filename}'. Do not use any prior knowledge outside of the provided text. If the answer cannot be found in the text, say 'The answer is not found in the provided document text.'\n\n--- Document Context Start ---\n{context_text}\n--- Document Context End ---"
+            "content": (
+                "You are an expert assistant. Answer strictly from the document text provided. "
+                "If the answer isn't present, reply ‘The answer is not found in the provided document text.’\n\n"  # noqa
+                "--- Document Context Start ---\n" + context_text + "\n--- Document Context End ---"
+            ),
         },
-        {
-            "role": "user",
-            "content": question
-        }
+        {"role": "user", "content": question},
     ]
 
-    # --- Call Groq API ---
     if not GROQ_API_KEY or not GROQ_API_URL:
-        return jsonify({'success': False, 'error': 'Groq API Key or URL not configured on the server'}), 500
+        return {"success": False, "error": "Groq API not configured"}, 500
 
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -204,50 +217,39 @@ def ask_question():
         "model": GROQ_MODEL,
         "messages": prompt_messages,
         "temperature": 0.7,
-        "max_tokens": 10000, 
+        "max_tokens": 10000,
         "top_p": 1,
-        "stop": None,
     }
 
     try:
-        logging.info(f"Sending request to Groq for doc ID {doc_id}...")
-        response = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=60) # Added timeout
-        response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
-
-        api_result = response.json()
-        logging.info("Received response from Groq.")
-
-        # Extract the answer
-        ai_answer = api_result.get("choices", [{}])[0].get("message", {}).get("content", None)
-
+        resp = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=60)
+        resp.raise_for_status()
+        ai_answer = resp.json().get("choices", [{}])[0].get("message", {}).get("content")
         if ai_answer is None:
-             logging.error(f"Groq response structure unexpected: {api_result}")
-             return jsonify({'success': False, 'error': 'Could not parse answer from Groq response'}), 500
+            raise ValueError("Could not parse answer from Groq response")
+        return {"success": True, "answer": ai_answer}, 200
 
-        return jsonify({'success': True, 'answer': ai_answer}), 200
-
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Error calling Groq API: {e}")
-        # Check if response exists for more details
-        error_detail = str(e)
-        if e.response is not None:
-            try:
-                error_detail = f"{e} - Response: {e.response.text}"
-            except Exception: # Handle cases where reading response text fails
-                pass
-        return jsonify({'success': False, 'error': f'Failed to communicate with Groq API: {error_detail}'}), 503 # 503 Service Unavailable
     except Exception as e:
-        logging.error(f"An unexpected error occurred during question asking: {e}")
-        return jsonify({'success': False, 'error': f'An unexpected server error occurred: {e}'}), 500
+        logging.exception("Groq API failure")
+        return {"success": False, "error": f"Groq API error: {e}"}, 503
 
-
-# Basic route to check if the server is running
-@app.route('/')
+# ---------------------------------------------------------------------------
+# Misc
+# ---------------------------------------------------------------------------
+@app.route("/")
 def index():
-    return "Flask backend is running!"
+    return "AskDocx backend is running!"
 
-# --- Main Execution ---
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO) # Enable basic logging
-    # Use host='0.0.0.0' to make it accessible on your network
-    app.run(debug=True, host='0.0.0.0', port=5000) # Run on port 5001 to avoid conflict with React default port
+# ---------------------------------------------------------------------------
+# Entrypoint
+# ---------------------------------------------------------------------------
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+    with app.app_context():
+        db.create_all()  # builds the User table
+
+    app.run(debug=True, host="0.0.0.0", port=5000)
+

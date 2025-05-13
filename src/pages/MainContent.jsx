@@ -1,6 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react'; // useEffect might not be needed if using context for root class
-import { useTheme } from '../layout/ThemeContext'; // Assuming ThemeContext.js is in the same folder or adjust path
+import { useTheme } from '../layout/ThemeContext';
+import {useAuth} from "../auth/AuthContext";
+// Assuming ThemeContext.js is in the same folder or adjust path
+
+
 
 // --- Helper Icons (Keep these as they are) ---
 const UploadIcon = () => (
@@ -40,12 +44,14 @@ const MoonIcon = () => (
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'; // Use env variable or default
 
 export default function MainContent() {
+  
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme(); // Use theme from context
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileError, setFileError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const {token} = useAuth();
 
   // Logic for file handling remains the same
   const handleFileChange = (event) => {
@@ -84,7 +90,8 @@ export default function MainContent() {
       console.log(`Uploading ${originalFileNameAttempt} to backend...`);
       const response = await fetch(`${BACKEND_URL}/api/upload-and-process`, {
         method: 'POST',
-        body: formData,
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,  
       });
 
       const result = await response.json();
