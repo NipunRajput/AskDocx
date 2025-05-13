@@ -14,6 +14,7 @@ import AuthPage     from "./auth/Login";      // ⬅ adjust name/path if differe
 import Register     from "./auth/Register";
 
 import { useAuth }  from "./auth/AuthContext";  // ⬅ make sure this file exists
+import ForgotPassword from './auth/ForgotPassword';
 
 /* ───────────────────────────────
    Route-guard helpers
@@ -77,7 +78,7 @@ export default function App() {
                 </RequireAuth>
               }
             />
-
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             {/* ── catch-all ───────────────────────────────── */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

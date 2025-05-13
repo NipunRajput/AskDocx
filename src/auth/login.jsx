@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from './AuthContext';   // adjust path if needed
 
 export default function AuthPage() {
@@ -127,9 +128,9 @@ export default function AuthPage() {
             {/* ---- Forgot (login only) ---- */}
             {authMode === 'login' && (
               <div className="flex justify-end mb-6">
-                <a href="#" className="text-sm text-indigo-400 hover:text-indigo-300">
+                <Link to="/ForgotPassword" className="text-sm text-indigo-400 hover:text-indigo-300">
                   Forgot password?
-                </a>
+                </Link>
               </div>
             )}
 
