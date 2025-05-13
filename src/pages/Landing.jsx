@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {image} from '../db'
 export default function Landing() {
   useEffect(() => {
-    document.getElementById("currentYear").textContent = new Date().getFullYear();
+    // document.getElementById("currentYear").textContent = new Date().getFullYear();
     const mobileMenuButton = document.getElementById("mobile-menu-button");
     const mobileMenu = document.getElementById("mobile-menu");
     const nav = document.querySelector("nav");
@@ -127,7 +127,7 @@ export default function Landing() {
         {/* Continue with Features, Use Cases, and Uploader Sections (can be modularized if needed) */}
       </main>
 
-      <footer className="py-12 bg-gray-800/50 border-t border-gray-700/50">
+      {/* <footer className="py-12 bg-gray-800/50 border-t border-gray-700/50">
         <div className="container mx-auto px-6 text-center">
           <a href="#" className="text-2xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4 inline-block">
             AskDocx
@@ -139,7 +139,7 @@ export default function Landing() {
           </div>
           <p className="text-gray-500 text-sm">&copy; <span id="currentYear"></span> AskDocx. All rights reserved. Your intelligent document companion.</p>
         </div>
-      </footer>
+      </footer> */}
     </div>
   );
 }

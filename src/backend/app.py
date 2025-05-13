@@ -6,18 +6,24 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import (
-    JWTManager, create_access_token, jwt_required, get_jwt_identity
+    JWTManager, create_access_token, jwt_required, get_jwt_identity,decode_token
 )
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 import requests
 import PyPDF2
 import docx
 import json
+from datetime import timedelta
 # import logging # logging is already imported above
 from docx.opc.exceptions import PackageNotFoundError
 import docx2txt
 # import docx # docx is already imported above
+
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 
 """AskDocx – unified backend (file processing + JWT auth)"""
@@ -31,9 +37,33 @@ app = Flask(__name__)
 CORS(
     app,
     resources={r"/api/*": {"origins": "http://localhost:5173"}},
+    supports_credentials=True,
     allow_headers=["Content-Type", "Authorization"],
     expose_headers=["Authorization"],
 )
+
+
+#Email--------------------------------------------------------------------
+def send_email(to_email, subject, body):
+    from_email = os.getenv("EMAIL_USER")
+    password = os.getenv("EMAIL_PASS")
+
+    msg = MIMEMultipart()
+    msg['From'] = from_email
+    msg['To'] = to_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(from_email, password)
+        text = msg.as_string()
+        server.sendmail(from_email, to_email, text)
+        server.quit()
+        print("Email sent successfully.")
+    except Exception as e:
+        print("Failed to send email:", str(e))
 
 # Database ---------------------------------------------------------------
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -403,6 +433,27 @@ def get_user_document_session(doc_session_id):
 # Forget Password
 # ---------------------------------------------------------------------------
 
+def send_email(to_email, subject, body):
+    from_email = os.getenv("EMAIL_USER")
+    password = os.getenv("EMAIL_PASS")
+
+    msg = MIMEMultipart()
+    msg['From'] = from_email
+    msg['To'] = to_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(from_email, password)
+        text = msg.as_string()
+        server.sendmail(from_email, to_email, text)
+        server.quit()
+        print("Email sent successfully.")
+    except Exception as e:
+        print("Failed to send email:", str(e))
+
 @app.route('/api/forgot-password', methods=['POST'])
 def forgot_password():
     data = request.get_json()
@@ -413,6 +464,41 @@ def forgot_password():
         reset_link = f"http://localhost:5173/api/reset-password/{token}"
         send_email(user.email, "Reset your password", f"Reset link: {reset_link}")
     return jsonify({"message": "If the email is registered, a reset link will be sent."})
+
+# ---------------------------------------------------------------------------
+# Token
+# ---------------------------------------------------------------------------
+
+@app.route('/api/reset-password/<token>', methods=['POST'])
+def reset_password(token):
+    try:
+        # Decode the token to get user ID
+        decoded_token = decode_token(token)
+        user_id = decoded_token['sub']  # Assuming 'sub' contains user ID
+
+        # Get new password from request body
+        data = request.get_json()
+        new_password = data.get('password')
+
+        if not new_password:
+            return jsonify({"error": "Password is required"}), 400
+
+        # Simulate updating the password in the database
+        # Replace this with actual database logic
+        print(f"Resetting password for user ID: {user_id} with new password: {new_password}")
+
+        return jsonify({"message": "Password reset successful."}), 200
+
+    except Exception as e:
+        print(f"Error in reset_password: {str(e)}")
+        return jsonify({"error": "Invalid or expired token."}), 400
+
+
+
+
+
+
+
 # ---------------------------------------------------------------------------
 # Misc
 # ---------------------------------------------------------------------------

@@ -30,6 +30,7 @@ export default function AuthPage() {
     }
   };
 
+
   const toggleAuthMode = () => {
     setAuthMode((prev) => (prev === 'login' ? 'signup' : 'login'));
     setEmail('');

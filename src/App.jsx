@@ -16,6 +16,7 @@ import Register     from "./auth/Register";
 import { useAuth }  from "./auth/AuthContext";  // ⬅ make sure this file exists
 import ForgotPassword from './auth/ForgotPassword';
 import Landing from "./pages/Landing";
+import ResetPassword from "./auth/ResetPassword";
 
 /* ───────────────────────────────
    Route-guard helpers
@@ -80,6 +81,7 @@ export default function App() {
               }
             />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             {/* ── catch-all ───────────────────────────────── */}
             <Route path="*" element={<Navigate to="/" replace />} />
 
