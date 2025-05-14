@@ -567,6 +567,10 @@ def reset_password():
         return jsonify({"success": False, "message": "Invalid token"}), 400
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+    
+# ---------------------------------------------------------------------------
+# Github Secret
+# ---------------------------------------------------------------------------
 
 
 # ---------------------------------------------------------------------------

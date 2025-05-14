@@ -17,7 +17,7 @@ import { useAuth }  from "./auth/AuthContext";  // ⬅ make sure this file exist
 import ForgotPassword from './auth/ForgotPassword';
 import Landing from "./pages/Landing";
 import ResetPassword from "./auth/ResetPassword";
-
+// import GithubCallback from "./auth/GithubCallback"
 /* ───────────────────────────────
    Route-guard helpers
    ─────────────────────────────── */
@@ -90,6 +90,8 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
 
              <Route path="/home" element={<Landing />} />
+             {/* <Route path="/auth/callback" element={<GithubCallback />} /> */}
+
           </Routes>
         </main>
 
