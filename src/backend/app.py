@@ -324,6 +324,7 @@ def ask_question():
                 "You are an expert assistant. Answer strictly from the document text provided. "
                 "If the answer isn't present, reply ‘The answer is not found in the provided document text.’\n\n"
                 "--- Document Context Start ---\n" + context_text + "\n--- Document Context End ---"
+                " • Always cite the paragraph number.  "
             ),
         },
         {"role": "user", "content": question_text},

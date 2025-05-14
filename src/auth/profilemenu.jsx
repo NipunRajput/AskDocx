@@ -32,7 +32,7 @@ export default function ProfileMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-zinc-800
+        <div className="absolute right-0 mt-2 w-60 bg-white dark:bg-zinc-800
                         rounded-md shadow-lg ring-1 ring-black/10 z-50">
           <div className="px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200">
             {user.email}
