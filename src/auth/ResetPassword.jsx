@@ -3,18 +3,28 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token'); // Get token from URL query param
+  const token = searchParams.get('token');
+  const navigate = useNavigate();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!token) {
+      setError('Invalid reset link. Please request a new one.');
+      return;
+    }
+
     if (!newPassword || !confirmPassword) {
       setError('Please fill out both fields.');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters.');
       return;
     }
 
@@ -26,91 +36,76 @@ export default function ResetPassword() {
     setLoading(true);
     setError('');
 
-    try {
-      const res = await fetch(`http://localhost:5000/api/reset-password/${token}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: newPassword }),
+  try {
+      const response = await fetch("http://localhost:5000/api/auth/reset-password", {
+        method: "POST",
+        mode: "cors",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ token, password: newPassword })
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || 'Failed to reset password.');
-      }
 
-      // Success
-      alert('Password reset successfully!');
-    //   navigate('/login');
-    // alert('Password reset successfully!');
-      window.location.href = '/login';
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Password reset failed');
     }
-  };
+    navigate('/login', { state: { message: 'Password reset successful!' }});
+    const data = await response.json();
+    // Handle success
+  } catch (error) {
+    console.error('Reset error:', error);
+    setError(error.message);
+  }
+};
 
   return (
     <div className="flex flex-col min-h-screen bg-black text-gray-100">
-      <header className="p-4 border-b border-gray-800 flex justify-between items-center">
-        <div className="flex items-center">
-          <svg className="w-8 h-8 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-          </svg>
-          <span className="ml-2 text-xl font-bold">AskDocx</span>
-        </div>
+      <header className="p-4 border-b border-gray-800 flex items-center">
+        <h1 className="text-xl font-bold">AskDocx</h1>
       </header>
-
       <main className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-          <form onSubmit={handleSubmit} className="p-8">
-            <h2 className="text-2xl font-bold text-center mb-6">Reset Password</h2>
+        <form onSubmit={handleSubmit} className="w-full max-w-md bg-gray-800 rounded-lg shadow-lg p-8">
+          <h2 className="text-2xl font-bold text-center mb-6">Reset Password</h2>
 
-            {error && (
-              <div className="text-red-400 text-sm text-center mb-4">{error}</div>
-            )}
+          {error && (
+            <div className="text-red-400 text-sm text-center mb-4">{error}</div>
+          )}
 
-            <div className="mb-4">
-              <label htmlFor="newPassword" className="block text-sm font-medium mb-2">
-                New Password
-              </label>
-              <input
-                id="newPassword"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password"
-                className="w-full px-3 py-2 bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                disabled={loading}
-                required
-              />
-            </div>
-
-            <div className="mb-6">
-              <label htmlFor="confirmPassword" className="block text-sm font-medium mb-2">
-                Confirm New Password
-              </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm password"
-                className="w-full px-3 py-2 bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                disabled={loading}
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
+          <label className="block mb-4">
+            <span className="text-sm">New Password</span>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full mt-1 px-3 py-2 bg-gray-700 rounded-md"
               disabled={loading}
-              className="w-full bg-indigo-600 py-3 rounded-md text-white font-medium transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Resetting...' : 'Reset Password'}
-            </button>
-          </form>
-        </div>
+              required
+            />
+          </label>
+
+          <label className="block mb-6">
+            <span className="text-sm">Confirm New Password</span>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full mt-1 px-3 py-2 bg-gray-700 rounded-md"
+              disabled={loading}
+              required
+            />
+          </label>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-indigo-600 py-3 rounded-md text-white font-medium hover:bg-indigo-700 transition disabled:opacity-70"
+          >
+            {loading ? 'Resetting...' : 'Reset Password'}
+          </button>
+        </form>
       </main>
     </div>
   );

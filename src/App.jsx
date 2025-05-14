@@ -10,7 +10,7 @@ import Header       from "./components/header";
 import Footer       from "./components/footer";
 import MainContent  from "./pages/MainContent";
 import Result       from "./pages/Result";
-import AuthPage     from "./auth/Login";      // ⬅ adjust name/path if different
+import AuthPage     from "./auth/login";      // ⬅ adjust name/path if different
 import Register     from "./auth/Register";
 
 import { useAuth }  from "./auth/AuthContext";  // ⬅ make sure this file exists
@@ -81,7 +81,11 @@ export default function App() {
               }
             />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+
+            {/* <Route path="/reset-password/:token" element={<ResetPassword />} /> */}
+            {/* <Route path="/reset-password/:token" element={<ResetPassword />} /> */}
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
             {/* ── catch-all ───────────────────────────────── */}
             <Route path="*" element={<Navigate to="/" replace />} />
 

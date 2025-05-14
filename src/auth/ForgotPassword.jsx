@@ -25,13 +25,18 @@ export default function ForgotPassword() {
     setLoading(true);
 
     try {
-      const res = await fetch('http://localhost:5000/api/forgot-password', {
+      const res=await fetch('http://localhost:5000/api/auth/forgot-password', {
         method: 'POST',
+        mode: 'cors',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email })
       });
 
-      if (!res.ok) throw new Error('Failed to send reset email.');
+      const data = await res.json();  // Parse response
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to send reset email.');
+      }
 
       setSubmitted(true);
     } catch (err) {

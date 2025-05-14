@@ -5,8 +5,9 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
+import jwt
 from flask_jwt_extended import (
-    JWTManager, create_access_token, jwt_required, get_jwt_identity,decode_token
+    JWTManager, create_access_token, jwt_required, get_jwt_identity
 )
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -24,6 +25,11 @@ import docx2txt
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
+
+
 
 
 """AskDocx – unified backend (file processing + JWT auth)"""
@@ -36,12 +42,16 @@ load_dotenv()  # Load variables from .env
 app = Flask(__name__)
 CORS(
     app,
-    resources={r"/api/*": {"origins": "http://localhost:5173"}},
-    supports_credentials=True,
-    allow_headers=["Content-Type", "Authorization"],
-    expose_headers=["Authorization"],
+    resources={
+        r"/api/*": {
+            "origins": ["http://localhost:5173"],
+            "methods": ["GET","HEAD","POST","OPTIONS","PUT","DELETE"],
+            "allow_headers": ["Content-Type","Authorization"],
+            "supports_credentials": True,
+            "expose_headers": ["Authorization"]
+        }
+    }
 )
-
 
 #Email--------------------------------------------------------------------
 def send_email(to_email, subject, body):
@@ -77,7 +87,7 @@ app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "SET_A_REAL_SECRET")
 
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
-jwt = JWTManager(app)
+jwt_manager = JWTManager(app)
 
 
 from datetime import timedelta
@@ -432,7 +442,7 @@ def get_user_document_session(doc_session_id):
 # ---------------------------------------------------------------------------
 # Forget Password
 # ---------------------------------------------------------------------------
-
+limiter = Limiter(app=app, key_func=get_remote_address)
 def send_email(to_email, subject, body):
     from_email = os.getenv("EMAIL_USER")
     password = os.getenv("EMAIL_PASS")
@@ -454,49 +464,109 @@ def send_email(to_email, subject, body):
     except Exception as e:
         print("Failed to send email:", str(e))
 
-@app.route('/api/forgot-password', methods=['POST'])
+@app.route('/api/auth/forgot-password', methods=['POST'])
+@limiter.limit("10/minute")
 def forgot_password():
     data = request.get_json()
-    email = data.get('email')
+    if not data or not data.get('email'):
+        return jsonify({"success": False, "message": "Email is required"}), 400
+        
+    email = data['email']
     user = User.query.filter_by(email=email).first()
+    
     if user:
-        token = create_access_token(identity=user.id, expires_delta=timedelta(minutes=15))
-        reset_link = f"http://localhost:5173/api/reset-password/{token}"
-        send_email(user.email, "Reset your password", f"Reset link: {reset_link}")
-    return jsonify({"message": "If the email is registered, a reset link will be sent."})
+        try:
+            # Create reset token with user's ID and expiration
+            reset_token = create_access_token(
+                identity=str(user.id),
+                expires_delta=timedelta(minutes=15)
+            )
+            
+            # Create reset link (using frontend route)
+            reset_link = f"http://localhost:5173/reset-password?token={reset_token}"
+            
+            # Email content
+            subject = "Password Reset Request"
+            body = f"""
+            You requested a password reset for your account.
+            
+            Please click the following link to reset your password:
+            {reset_link}
+            
+            This link will expire in 15 minutes.
+            
+            If you didn't request this, please ignore this email.
+            """
+            
+            # Send email
+            send_email(user.email, subject, body)
+            
+            return jsonify({
+                "success": True,
+                "message": "If an account exists with this email, a reset link has been sent."
+            }), 200
+            
+        except Exception as e:
+            app.logger.error(f"Error sending reset email: {str(e)}")
+            return jsonify({
+                "success": False,
+                "message": "Error sending reset email"
+            }), 500
+    
+    # Return same response whether user exists or not (security)
+    return jsonify({
+        "success": True,
+        "message": "If an account exists with this email, a reset link has been sent."
+    }), 200
+
 
 # ---------------------------------------------------------------------------
 # Token
 # ---------------------------------------------------------------------------
+@app.route('/api/auth/reset-password', methods=['POST'])
+def reset_password():
+    data = request.get_json() or {}
+    token = data.get('token')
+    if not token:
+        return jsonify({"success": False, "message": "Token is required"}), 400
 
-@app.route('/api/reset-password/<token>', methods=['POST'])
-def reset_password(token):
     try:
-        # Decode the token to get user ID
-        decoded_token = decode_token(token)
-        user_id = decoded_token['sub']  # Assuming 'sub' contains user ID
+        # Now this jwt.decode is PyJWT, not your manager
+        decoded = jwt.decode(
+            token,
+            app.config['JWT_SECRET_KEY'],
+            algorithms=['HS256']
+        )
+        user_id = decoded.get("sub")
+        if not user_id:
+            return jsonify({"success": False, "message": "Invalid token"}), 400
 
-        # Get new password from request body
         data = request.get_json()
-        new_password = data.get('password')
+        new_password = data.get("password", "").strip()
+        
+        if not new_password or len(new_password) < 8:
+            return jsonify({
+                "success": False,
+                "message": "Password must be at least 8 characters"
+            }), 400
 
-        if not new_password:
-            return jsonify({"error": "Password is required"}), 400
+# new, uses Session.get()
 
-        # Simulate updating the password in the database
-        # Replace this with actual database logic
-        print(f"Resetting password for user ID: {user_id} with new password: {new_password}")
+        user = db.session.get(User, user_id)
+        if not user:
+            return jsonify({"success": False, "message": "User not found"}), 404
 
-        return jsonify({"message": "Password reset successful."}), 200
+        user.pw_hash = bcrypt.generate_password_hash(new_password).decode('utf-8')
+        db.session.commit()
 
+        return jsonify({"success": True, "message": "Password reset successful"}), 200
+
+    except ExpiredSignatureError:
+        return jsonify({"success": False, "message": "Reset link expired"}), 400
+    except InvalidTokenError:
+        return jsonify({"success": False, "message": "Invalid token"}), 400
     except Exception as e:
-        print(f"Error in reset_password: {str(e)}")
-        return jsonify({"error": "Invalid or expired token."}), 400
-
-
-
-
-
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 # ---------------------------------------------------------------------------
