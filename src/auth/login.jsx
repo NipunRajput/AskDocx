@@ -1,7 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
+
 import { useAuth } from './AuthContext';   // adjust path if needed
+const GITHUB_CLIENT_ID   = import.meta.env.VITE_GITHUB_CLIENT_ID;
+const GITHUB_REDIRECT_URI = encodeURIComponent(import.meta.env.VITE_GITHUB_REDIRECT_URI);
+const GITHUB_SCOPE        = encodeURIComponent('read:user user:email');
+const GITHUB_AUTH_URL     = 
+  `https://github.com/login/oauth/authorize` +
+  `?client_id=${GITHUB_CLIENT_ID}` +
+  `&redirect_uri=${GITHUB_REDIRECT_URI}` +
+  `&scope=${GITHUB_SCOPE}`;
+
 
 export default function AuthPage() {
   const [authMode, setAuthMode] = useState('login');
@@ -209,7 +219,7 @@ export default function AuthPage() {
                 <button
                   type="button"
                   className="flex justify-center items-center py-2 px-4 border border-gray-700 rounded-md shadow-sm bg-gray-800 hover:bg-gray-700 transition-colors"
-                  onClick={() => alert('GitHub OAuth coming soon')}
+                  onClick={() => window.location.assign(GITHUB_AUTH_URL)}
                 >
                   <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
                     <path d="M12 .5C5.648.5.5 5.648.5 12.005c0 5.108 3.292 9.434 7.86 10.964.574.105.784-.249.784-.556 0-.274-.01-1.005-.015-1.974-3.197.695-3.872-1.541-3.872-1.541-.522-1.326-1.275-1.678-1.275-1.678-1.042-.712.079-.698.079-.698 1.15.08 1.755 1.18 1.755 1.18 1.025 1.754 2.69 1.247 3.344.953.104-.743.402-1.247.731-1.534-2.553-.29-5.238-1.276-5.238-5.678 0-1.254.448-2.28 1.181-3.084-.118-.289-.512-1.453.112-3.029 0 0 .964-.309 3.16 1.177a10.966 10.966 0 012.88-.387c.976.005 1.96.132 2.88.387 2.195-1.486 3.158-1.177 3.158-1.177.626 1.576.232 2.74.114 3.029.735.804 1.18 1.83 1.18 3.084 0 4.414-2.688 5.384-5.25 5.668.415.356.785 1.06.785 2.137 0 1.543-.014 2.785-.014 3.162 0 .31.207.666.79.553C20.71 21.434 24 17.107 24 12.005 24 5.648 18.852.5 12 .5z" />

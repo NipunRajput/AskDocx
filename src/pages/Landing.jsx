@@ -83,10 +83,10 @@ export default function Landing() {
             Stop searching, start understanding. Upload your PDFs or DOCX files, ask questions, and get intelligent answers in seconds.
           </p>
           <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
-            <Link to="/upload" className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-4 px-10 rounded-lg text-lg shadow-xl hover:shadow-2xl transform hover:scale-105 transition duration-300 ease-in-out">
+            <Link to="/login" className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-4 px-10 rounded-lg text-lg shadow-xl hover:shadow-2xl transform hover:scale-105 transition duration-300 ease-in-out">
               Upload Document & Ask
             </Link>
-            <Link to="/history" className="border-2 border-indigo-500 text-indigo-400 font-semibold py-3.5 px-10 rounded-lg text-lg hover:bg-indigo-500 hover:text-white transition duration-300 ease-in-out transform hover:scale-105">
+            <Link to="/login" className="border-2 border-indigo-500 text-indigo-400 font-semibold py-3.5 px-10 rounded-lg text-lg hover:bg-indigo-500 hover:text-white transition duration-300 ease-in-out transform hover:scale-105">
               View Chat History
             </Link>
           </div>
