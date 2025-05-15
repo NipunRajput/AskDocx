@@ -82,7 +82,7 @@ export default function Landing() {
               <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">Converse</span> with Your Documents.
             </h1>
             <p className="text-lg md:text-xl lg:text-2xl text-gray-400 max-w-3xl mx-auto mb-12 leading-relaxed">
-              Stop searching, start understanding. Upload your PDFs or DOCX files, ask questions, and get intelligent answers in seconds.
+              Stop searching, start understanding. Upload your files, ask questions, and get intelligent answers in seconds.
             </p>
             <div className="flex flex-col sm:flex-row justify-center items-center space-y-5 sm:space-y-0 sm:space-x-8">
               <Link to="/login" className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-4 px-10 rounded-lg text-lg shadow-xl hover:shadow-2xl transform hover:scale-105 transition duration-300 ease-in-out w-full sm:w-auto">
@@ -109,7 +109,7 @@ export default function Landing() {
               {[
                 {
                   title: "Upload Securely",
-                  description: "Drag & drop or select your PDF or DOCX file. Your data is handled with utmost security.",
+                  description: "Drag & drop or select your file. Your data is handled with utmost security.",
                   iconColor: "bg-indigo-500",
                 },
                 {
