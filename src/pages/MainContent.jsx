@@ -55,7 +55,7 @@ export default function MainContent() {
     setSelectedFile(null);
 
     if (file) {
-      const allowedExtensions = ['.pdf', '.docx'];
+      const allowedExtensions = ['.pdf', '.docx', '.doc', '.xlsx', '.pptx', '.txt'];
       const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
 
       if (allowedExtensions.includes(fileExtension)) {
@@ -163,7 +163,7 @@ export default function MainContent() {
         <p className={`
             text-center mb-8 text-sm sm:text-base
             ${theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500'}
-          `}>Upload a PDF or DOCX file to start a new chat.</p>
+          `}>Upload your file to start a new chat.</p>
 
         {/* Custom File Input Area (same as before) */}
         <div className="mb-6">
@@ -185,10 +185,10 @@ export default function MainContent() {
           >
             <input
               id="file-upload"
-              name="File" // Note: 'name' attribute is 'File' with capital F, usually lowercase 'file'
+              name="document" // Note: 'name' attribute is 'File' with capital F, usually lowercase 'file'
               type="file"
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              accept=".pdf,.docx,.doc,.xlsx,.pptx,.txt"
               onChange={handleFileChange}
               disabled={isProcessing}
             />
