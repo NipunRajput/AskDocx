@@ -134,3 +134,35 @@ def get_user_document_session(doc_id: int):
             "updated_at": doc.updated_at.isoformat(),
         }
     }, 200
+
+
+# routes/document_routes.py  (excerpt)
+# @bp.get("/suggest/<int:doc_id>")
+# @jwt_required()
+# def suggest_questions(doc_id):
+#     doc = UserDocument.query.filter_by(id=doc_id,
+#                                        user_id=get_jwt_identity()).first_or_404()
+
+#     # Prepare a short prompt for the Groq model
+#     prompt = (
+#       "You are an assistant helping a user explore a document.\n"
+#       "Document excerpt:\n"
+#       f"{doc.extracted_text[:4_000]}\n\n"  # keep token cost low
+#       "Suggest 5 concise, diverse questions a user might ask about it. "
+#       "Return as a JSON list."
+#     )
+
+#     resp = requests.post(
+#         GROQ_API_URL,
+#         headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
+#         json={"model": GROQ_MODEL, "prompt": prompt, "max_tokens": 120}
+#     )
+#     suggestions = resp.json()["choices"][0]["text"]
+
+#     # Basic safety / fallback
+#     try:
+#         questions = json.loads(suggestions)
+#     except ValueError:
+#         questions = [q.strip("-• ") for q in suggestions.splitlines() if q.strip()]
+
+#     return {"suggestions": questions[:5]}

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useTheme } from '../layout/ThemeContext';
 import { useAuth } from '../auth/AuthContext';
 
+
 // --- Reusable Icons (Keep these as they are) ---
 const LoadingSpinner = ({ theme }) => (
   <svg
