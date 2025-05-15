@@ -10,7 +10,7 @@ import requests, os
 bp = Blueprint("docs", __name__, url_prefix="/api")
 
 # --------------- helpers ---------------
-ALLOWED_EXTENSIONS = {"pdf", "docx","xlsx","doc","pptx","txt"}
+ALLOWED_EXTENSIONS = {"pdf", "docx","xlsx","doc","pptx","txt","csv"}
 GROQ_API_URL  = os.getenv("GROQ_API_URL")
 GROQ_API_KEY  = os.getenv("GROQ_API_KEY")
 GROQ_MODEL    = "meta-llama/llama-4-maverick-17b-128e-instruct"

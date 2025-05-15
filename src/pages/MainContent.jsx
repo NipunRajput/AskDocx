@@ -55,13 +55,13 @@ export default function MainContent() {
     setSelectedFile(null);
 
     if (file) {
-      const allowedExtensions = ['.pdf', '.docx', '.doc', '.xlsx', '.pptx', '.txt'];
+      const allowedExtensions = ['.pdf', '.docx', '.doc', '.xlsx', '.pptx', '.txt','.csv'];
       const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
 
       if (allowedExtensions.includes(fileExtension)) {
         setSelectedFile(file);
       } else {
-        setFileError('Invalid file type. Please select a PDF or DOCX file.');
+        setFileError('Invalid file type. Please select a different file.');
       }
     }
   };
@@ -188,7 +188,7 @@ export default function MainContent() {
               name="document" // Note: 'name' attribute is 'File' with capital F, usually lowercase 'file'
               type="file"
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              accept=".pdf,.docx,.doc,.xlsx,.pptx,.txt"
+              accept=".pdf,.docx,.doc,.xlsx,.pptx,.txt,.csv"
               onChange={handleFileChange}
               disabled={isProcessing}
             />
@@ -208,10 +208,10 @@ export default function MainContent() {
                       )
                   }
                 `}>
-                {isProcessing ? 'Processing file...' : (uploadSuccess ? 'Processing Complete!' : (selectedFile ? selectedFile.name : 'Click or drag PDF/DOCX file here'))}
+                {isProcessing ? 'Processing file...' : (uploadSuccess ? 'Processing Complete!' : (selectedFile ? selectedFile.name : 'Click or drag file here'))}
               </p>
               {!selectedFile && !isProcessing && !uploadSuccess &&
-                <p className={`${theme === 'dark' ? 'text-xs text-zinc-500' : 'text-xs text-gray-400'}`}>PDF, DOCX supported</p>
+                <p className={`${theme === 'dark' ? 'text-xs text-zinc-500' : 'text-xs text-gray-400'}`}>Multiple File formats supported supported</p>
               }
               {selectedFile && !isProcessing && !uploadSuccess && !fileError &&
                 <p className={`${theme === 'dark' ? 'text-xs text-green-500' : 'text-xs text-green-600'}`}>File selected. Ready to upload & process.</p>

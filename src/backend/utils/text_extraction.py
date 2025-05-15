@@ -7,6 +7,7 @@ import docx2txt
 import openpyxl
 from pptx import Presentation
 from docx.opc.exceptions import PackageNotFoundError  # noqa
+import csv
 
 # --------------------------------------------------------------------- #
 # Individual format helpers
@@ -64,6 +65,16 @@ def extract_text_from_doc(path: str) -> str:
     except Exception as exc:
         raise ValueError(f"DOC read error: {exc}")
 
+
+def extract_text_from_csv(path: str) -> str:
+    """Return file as tab-separated rows (one line per CSV row)."""
+    rows = []
+    with open(path, newline='', encoding="utf-8") as fh:
+        reader = csv.reader(fh)
+        for row in reader:
+            rows.append("\t".join(row))
+    return "\n".join(rows)
+
 # --------------------------------------------------------------------- #
 # Unified dispatcher
 # --------------------------------------------------------------------- #
@@ -82,5 +93,7 @@ def extract_text(path: str) -> str:
         return extract_text_from_xlsx(path)
     elif ext == ".pptx":
         return extract_text_from_pptx(path)
+    elif ext == ".csv":
+        return extract_text_from_csv(path)
 
     raise ValueError(f"Unsupported file type: {ext}")
