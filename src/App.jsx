@@ -10,14 +10,14 @@ import Header       from "./components/header";
 import Footer       from "./components/footer";
 import MainContent  from "./pages/MainContent";
 import Result       from "./pages/Result";
-import AuthPage     from "./auth/login";      // ⬅ adjust name/path if different
+import AuthPage     from "./auth/login";    
 import Register     from "./auth/Register";
-
-import { useAuth }  from "./auth/AuthContext";  // ⬅ make sure this file exists
+import { useAuth }  from "./auth/AuthContext";
 import ForgotPassword from './auth/ForgotPassword';
 import Landing from "./pages/Landing";
 import ResetPassword from "./auth/ResetPassword";
-// import GithubCallback from "./auth/GithubCallback"
+
+
 /* ───────────────────────────────
    Route-guard helpers
    ─────────────────────────────── */

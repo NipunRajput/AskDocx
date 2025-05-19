@@ -6,7 +6,7 @@ import docx
 import docx2txt
 import openpyxl
 from pptx import Presentation
-from docx.opc.exceptions import PackageNotFoundError  # noqa
+from docx.opc.exceptions import PackageNotFoundError
 import csv
 
 # --------------------------------------------------------------------- #

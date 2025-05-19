@@ -211,7 +211,7 @@ export default function Landing() {
                   {/* <span className="text-indigo-400 font-medium">Learn more →</span> */}
                 </div>
               </div>
-              
+  
               <div className="bg-gray-800/40 border border-gray-700/70 rounded-xl p-8 md:p-10 text-left shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col h-full md:col-span-2">
                 <div className="bg-gradient-to-r from-pink-500 to-indigo-500 rounded-lg w-12 h-12 flex items-center justify-center mb-6">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
